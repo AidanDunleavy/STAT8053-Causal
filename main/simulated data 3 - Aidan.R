@@ -2,8 +2,8 @@
 set.seed(123)  # For reproducibility
 
 # Parameters
-n_rct <- 1200      # Sample size for the RCT
-n_obs <- 75000      # Sample size for the observational study
+n_rct <- 200      # Sample size for the RCT
+n_obs <- 500      # Sample size for the observational study
 treatment_effect <- 5  # Treatment effect on the outcome
 
 # Baseline covariates
@@ -55,5 +55,5 @@ summary(combined_data)
 head(combined_data)
 
 # Save the combined dataset as an RDS file
-# saveRDS(combined_data, file = "lib/combined_data_large.rds")
+# saveRDS(combined_data, file = "lib/combined_data.rds")
 

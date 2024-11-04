@@ -1,6 +1,9 @@
 library(reshape2)
 library(MASS)
 library(dplyr)
+library(table1) # table for baseline
+library(wesanderson) # colors
+library(genRCT) # remotes::install_github("idasomm/genRCT")
 
 compute_mean_diff_RCT <- function(DF){
   RCT_ATE <- mean(DF[DF$A == 1 & DF$V == 1, "Y"]) - mean(DF[DF$A == 0  & DF$V == 1, "Y"])  

@@ -55,4 +55,10 @@ summary(combined_data)
 head(combined_data)
 
 
+saveRDS(combined_data, file = "lib/combined_data.rds")
+
+
 str(combined_data)
+
+
+

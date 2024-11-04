@@ -1,5 +1,5 @@
 combined_data <- readRDS("lib/combined_data_large.rds")
-combined_data <- readRDS("lib/combined_data.rds")
+combined_data <- readRDS("lib/combined_data.rds") # the original data we simulated and used (including the one you used shreya) just the var names are changed to align with the code from the paper to compute estimates using their code.
 
 combined_data <- combined_data[, !names(combined_data) %in% c("id")]
 

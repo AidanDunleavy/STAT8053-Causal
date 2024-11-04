@@ -13,6 +13,6 @@ results <- compute_estimators_and_store(rep = 100, misoutcome = "correct", misRC
 # Display the results
 head(results)
 summary(results)
-
+boxplot(results)
 
 

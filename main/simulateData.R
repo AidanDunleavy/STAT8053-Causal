@@ -59,7 +59,7 @@ estimates <- repsim(1000)
 estimates <- data.frame(estimates)
 names(estimates) <- c("IPSW", "Gformula", "AIPSW")
 boxplot(estimates)
-abline(h=5, lty = 2, col = "salmon")
+abline(h=5, lty = 2, col = "red")
 
 library(reshape2)
 library(MASS)

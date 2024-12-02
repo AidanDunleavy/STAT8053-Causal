@@ -36,8 +36,6 @@ simulateData <- function(n_rct, n_obs, treatment_effect, age_mean, age_sd, sex_p
 }
 
 
-
-
 repsim <- function(rep) {
   mat <- c(0,0,0)
   for(i in 1:rep) {

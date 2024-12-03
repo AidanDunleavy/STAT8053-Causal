@@ -1,36 +1,31 @@
-library(tidyverse)
+# Step 1: Load necessary libraries
+library(dplyr)
 library(haven)
-# Load STAR High Schools dataset
-# star_high <- read_sav("lib/STAR_High_Schools.sav")
-# 
-# Load STAR K-3 Schools dataset
-# star_k3 <- read_sav("lib/STAR_K-3_Schools.sav")
-
-# Load STAR Students dataset
 star_students <- read_sav("lib/STAR_Students.sav")
 
-dim(star_students)
+label_by_column <-setNames(lapply(names(star_students), function(index) {
+  c(attr(star_students[[index]], "labels"),
+    attr(star_students[[index]], "label"))
+}), names(star_students))
 
-names(star_students)
-
-
-
-indices <- grep(pattern = "^(g1tmath)|^(g1tlist)|^(g1tread)", x = names(star_students), value = FALSE)
-label_by_column[indices]
-
-attr(star_students[[1]], "label")
-
-# star_students$g1tmathss
-
-table(star_students[indices[3]], useNA = "always")
-table(star_students$cmpstype, useNA = "always")
 label_by_column$g1classtype
 
-table(star_students$g1classsize, useNA = "always")
-table(star_students$g1classtype, useNA = "always")
+
+# Step 2: Create synthetic RCT
+# Assuming `star_students` is the loaded dataset
+
+
+# Define the covariate to split samples
+star_students <- star_students %>%
+  mutate(
+    U = ifelse(g1surban %in% c(1, 3), 1, 0) # 1: rural/inner-city, 0: urban/suburban
+  )
+
+table(star_students$U, useNA = "always")
+table(star_students$g1treadss, useNA = "always")
 
 # Subset and rename variables for clarity
-data_rct <- star_students %>%
+star_students_filtered <- star_students %>%
   transmute(
     student_id = stdntid,
     treatment = case_when(
@@ -40,92 +35,82 @@ data_rct <- star_students %>%
     outcome = g1treadss + g1tmathss + g1tlistss,    # Grade 1 sum of reading score, math score, and listening score
     gender = as_factor(gender),
     race = as_factor(race),
-    birth_year = birthyear,
     birth_month = birthmonth,
-    free_lunch = as_factor(g1freelunch)
+    birth_day = birthday,
+    birth_year = birthyear,
+    free_lunch = as_factor(g1freelunch),
+    teacher_id = as_factor(g1tchid),
+    U = U
   ) %>%
   filter(!is.na(treatment), !is.na(outcome), !is.na(gender),
-         !is.na(race), !is.na(birth_year), !is.na(birth_month), !is.na(free_lunch))
+         !is.na(race), !is.na(birth_year), !is.na(birth_month),
+         !is.na(free_lunch), !is.na(teacher_id))
 
-table(data_rct$treatment, useNA = "always")
-table(data_rct$gender, useNA = "always")
-table(data_rct$race, useNA = "always")
-table(data_rct$birth_year, useNA = "always")
-table(data_rct$birth_month, useNA = "always")
-table(data_rct$free_lunch, useNA = "always")
+table(star_students_filtered$U, useNA = "always")
+dim(star_students_filtered)
 
-dim(data_rct)
+set.seed(42) # For reproducibility
+# Randomly sample half of the U=1 group for the RCT
+rct_data <- star_students_filtered %>%
+  filter(U == 1) %>%
+  sample_frac(0.5) %>%
+  mutate(study = "RCT")
 
-# Simulate observational treatment assignment
-set.seed(123)
+dim(rct_data)
 
-data_obs <- data_rct %>%
+
+
+
+# Step 3: Create synthetic observational study (OS)
+# Part (a): U == 1
+# then if A = 0, keep as long as it is not in RCT.
+# But if A = 1, keep if outcome is in (lower half of samples with A = 1 and U = 1). 
+os_data_part_a <- star_students_filtered %>%
+  filter(U == 1) %>%
+  group_by(A = treatment == 1) %>%
   mutate(
-    # Remove original treatment assignment
-    treatment_rct = treatment,
-    # Create a propensity score based on covariates
-    propensity_score = plogis(
-      -0.5 + 0.4 * as.numeric(gender) +
-        0.3 * as.numeric(race) +
-        0.01 * birth_year +
-        0.5 * as.numeric(data_rct$birth_month) +
-        0.5 * as.numeric(free_lunch)
-    ),
-    # Assign treatment based on propensity score
-    treatment = rbinom(n(), 1, propensity_score)
+    lower_half_cutoff = ifelse(A == 1, quantile(outcome[A == 1], probs = 0.5, na.rm = TRUE), NA)
+  ) %>%
+  ungroup() %>%
+  filter(
+    # Include A = 0 if not in RCT
+    (A == 0 & !student_id %in% rct_data$student_id) |
+      # Include A = 1 if in lower half of outcomes for A = 1 and U = 1
+      (A == 1 & outcome <= lower_half_cutoff)
   )
 
+dim(os_data_part_a)
 
 
-lapply(as.numeric(data_rct$free_lunch), function(x) {
-  
-})
+intersect(os_data_part_a$student_id, rct_data$student_id)
 
-table(star_students$g4nfreelunch, useNA = "always")
-
-# Add study indicator
-data_rct <- data_rct %>% mutate(study = "RCT")
-data_obs <- data_obs %>% mutate(study = "OBS")
-
-# Combine datasets
-combined_data <- bind_rows(data_rct, data_obs)
-
-# Summary statistics
-combined_data %>%
-  group_by(study, treatment) %>%
-  summarise(
-    mean_outcome = mean(outcome, na.rm = TRUE),
-    count = n()
-  )
-
-# Visualize distributions
-ggplot(combined_data, aes(x = outcome, fill = study)) +
-  geom_density(alpha = 0.5) +
-  facet_wrap(~ treatment) +
-  theme_minimal()
-
-######################################
-
-# Estimate propensity scores in observational data
-ps_model <- glm(
-  treatment ~ gender + race + birth_year + free_lunch,
-  data = data_obs,
-  family = binomial()
-)
-
-data_obs <- data_obs %>%
+# Part (b): From samples with U = 0, take all samples with A = 0 and samples with A = 1 whose outcomes
+# are in the lower half of outcomes among samples with A = 1 & U = 0.
+os_data_part_b <- star_students_filtered %>%
+  filter(U == 0) %>%
+  group_by(A = treatment == 1) %>%
   mutate(
-    propensity_score = predict(ps_model, type = "response"),
-    weight = ifelse(treatment == 1,
-                    1 / propensity_score,
-                    1 / (1 - propensity_score))
-  )
-
-# Weighted outcome mean
-weighted_mean <- data_obs %>%
-  group_by(treatment) %>%
-  summarise(
-    weighted_outcome = sum(outcome * weight) / sum(weight)
+    lower_half_cutoff = ifelse(A == 1, quantile(outcome[A == 1], probs = 0.5, na.rm = TRUE), NA)
+  ) %>%
+  ungroup() %>%
+  filter(
+    # Include A = 0 if not in RCT
+    (A == 0) |
+      # Include A = 1 if in lower half of outcomes for A = 1 and U = 1
+      (A == 1 & outcome <= lower_half_cutoff)
   )
 
 
+# Combine OS data
+os_data <- bind_rows(os_data_part_a, os_data_part_b) %>%
+  mutate(study = "OS")
+
+intersect(os_data_part_b$student_id, rct_data$student_id)
+
+
+# Step 4: Combine RCT and OS datasets
+combined_data <- bind_rows(rct_data, os_data)[-c(13,14)] # removes "A" and "lower_half_cutoff"
+
+# Step 5: Check and save the combined dataset
+summary(combined_data)
+saveRDS(combined_data, "lib/synthetic_star_data.rds")

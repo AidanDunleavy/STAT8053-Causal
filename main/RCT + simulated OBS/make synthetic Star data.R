@@ -10,6 +10,8 @@ label_by_column <-setNames(lapply(names(star_students), function(index) {
 
 label_by_column$g1classtype
 
+label_by_column$g1surban
+
 
 # Step 2: Create synthetic RCT
 # Assuming `star_students` is the loaded dataset
@@ -97,10 +99,11 @@ os_data_part_b <- star_students_filtered %>%
   filter(
     # Include A = 0 if not in RCT
     (A == 0) |
-      # Include A = 1 if in lower half of outcomes for A = 1 and U = 1
+      # Include A = 1 if in lower half of outcomes for A = 1 and U = 0
       (A == 1 & outcome <= lower_half_cutoff)
   )
 
+dim(os_data_part_b)
 
 # Combine OS data
 os_data <- bind_rows(os_data_part_a, os_data_part_b) %>%
@@ -108,9 +111,8 @@ os_data <- bind_rows(os_data_part_a, os_data_part_b) %>%
 
 intersect(os_data_part_b$student_id, rct_data$student_id)
 
-
 # Step 4: Combine RCT and OS datasets
-combined_data <- bind_rows(rct_data, os_data)[-c(13,14)] # removes "A" and "lower_half_cutoff"
+combined_data <- bind_rows(rct_data, os_data) %>% select(-c(A, lower_half_cutoff)) # removes "A" and "lower_half_cutoff"
 
 # Step 5: Check and save the combined dataset
 summary(combined_data)

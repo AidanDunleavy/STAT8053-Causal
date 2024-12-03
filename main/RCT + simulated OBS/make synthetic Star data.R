@@ -49,7 +49,8 @@ star_students_filtered <- star_students %>%
 table(star_students_filtered$U, useNA = "always")
 dim(star_students_filtered)
 
-set.seed(42) # For reproducibility
+seed = 12345
+set.seed(seed) # For reproducibility
 # Randomly sample half of the U=1 group for the RCT
 rct_data <- star_students_filtered %>%
   filter(U == 1) %>%
@@ -113,4 +114,4 @@ combined_data <- bind_rows(rct_data, os_data)[-c(13,14)] # removes "A" and "lowe
 
 # Step 5: Check and save the combined dataset
 summary(combined_data)
-saveRDS(combined_data, "lib/synthetic_star_data.rds")
+saveRDS(combined_data, paste0("lib/synthetic_star_data",seed,".rds"))

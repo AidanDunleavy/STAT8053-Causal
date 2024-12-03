@@ -2,7 +2,7 @@
 set.seed(123)  # For reproducibility
 
 # Parameters
-n_rct <- 75000#1200      # Sample size for the RCT
+n_rct <- 1200      # Sample size for the RCT
 n_obs <- 75000      # Sample size for the observational study
 treatment_effect <- 5  # Treatment effect on the outcome
 
